@@ -68,7 +68,8 @@ std::string BaseForm::postData(std::string sPostData)
     curl = curl_easy_init();
     if (curl) {
         // API URL
-        curl_easy_setopt(curl, CURLOPT_URL, URL);
+        const char* charurl = URL.c_str();
+        curl_easy_setopt(curl, CURLOPT_URL, charurl);
 
         // Set POST method
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
