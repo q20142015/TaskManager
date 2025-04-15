@@ -24,8 +24,8 @@ namespace TaskManager {
 	public ref class BaseForm : public System::Windows::Forms::Form
 	{
 	public:
-		String^ sPID="";
-		String^ sNameDll="";
+		String^ sPID = "";
+		String^ sNameDll = "";
 		void gridRefreshThread();
 		void gridRefresh();
 		void getDataFromNum(std::string s, std::string s1);
@@ -72,7 +72,7 @@ namespace TaskManager {
 		/// <summary>
 		/// Обязательная переменная конструктора.
 		/// </summary>
-		System::ComponentModel::Container ^components;
+		System::ComponentModel::Container^ components;
 
 #pragma region Windows Form Designer generated code
 		/// <summary>
@@ -241,10 +241,10 @@ namespace TaskManager {
 			this->dataGridView1->Rows[pos]->Cells[0]->Value = s1;
 			this->dataGridView1->Rows[pos]->Cells[1]->Value = s2;
 		}
-		void rowschange(String^ s1, String^ s2,int pos) {
+		void rowschange(String^ s1, String^ s2, int pos) {
 			this->dataGridView1->Rows[pos]->Cells[0]->Value = s1;
 			this->dataGridView1->Rows[pos]->Cells[1]->Value = s2;
-		}		
+		}
 		void rowsdel(int pos) {
 			this->dataGridView1->Invoke(gcnew Action<int>(this, &BaseForm::rowsdelDel), pos);
 		}
@@ -253,51 +253,65 @@ namespace TaskManager {
 			MessageBox::Show(s1, "Полученные данные", MessageBoxButtons::OK, MessageBoxIcon::Warning);
 		}
 #pragma endregion
-private: System::Void buttonRestart_Click(System::Object^ sender, System::EventArgs^ e) {
-	HANDLE hMutexO = OpenMutexA(MUTEX_ALL_ACCESS, 0, mutexName);
-	if (hMutexO) { CloseHandle(hMutexO); CloseHandle(hMutex);}
-	hMutex = OpenMutexA(MUTEX_ALL_ACCESS, 0, mutexName);
-	wchar_t szPath[MAX_PATH];
-	if (GetModuleFileName(NULL, szPath, ARRAYSIZE(szPath)))
-	{
-		SHELLEXECUTEINFO sei = { sizeof(sei) };
-		sei.lpVerb = L"runas";
-		sei.lpFile = szPath;
-		sei.hwnd = NULL;
-		sei.nShow = SW_NORMAL;
-		if (!ShellExecuteEx(&sei))
+	private: System::Void buttonRestart_Click(System::Object^ sender, System::EventArgs^ e) {
+		HANDLE hMutexO = OpenMutexA(MUTEX_ALL_ACCESS, 0, mutexName);
+		if (hMutexO) { CloseHandle(hMutexO); CloseHandle(hMutex); }
+		hMutex = OpenMutexA(MUTEX_ALL_ACCESS, 0, mutexName);
+		wchar_t szPath[MAX_PATH];
+		if (GetModuleFileName(NULL, szPath, ARRAYSIZE(szPath)))
 		{
-			hMutex = CreateMutexA(0, 0, mutexName);
+			SHELLEXECUTEINFO sei = { sizeof(sei) };
+			sei.lpVerb = L"runas";
+			sei.lpFile = szPath;
+			sei.hwnd = NULL;
+			sei.nShow = SW_NORMAL;
+			if (!ShellExecuteEx(&sei))
+			{
+				hMutex = CreateMutexA(0, 0, mutexName);
+			}
+			else
+			{
+				_exit(1);
+			}
 		}
-		else
+	}
+	private: System::Void buttonEnd_Click(System::Object^ sender, System::EventArgs^ e) {
+		thread = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonEnd_Thread));
+		thread->Start();
+	}
+	private: System::Void buttonEnd_Thread() {
+		String^ s1 = sPID;
+		endFromNum(msclr::interop::marshal_as<std::string>(s1));
+	}
+	private: System::Void buttonSend_Click(System::Object^ sender, System::EventArgs^ e) {
+		thread = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonSend_Thread));
+		thread->Start();
+	}
+	private: System::Void buttonSend_Thread() {
+		String^ s1 = sPID; String^ s2 = sNameDll;
+		if (s1 != "")
 		{
-			_exit(1); 
+			sendDataFromNum(msclr::interop::marshal_as<std::string>(s1), msclr::interop::marshal_as<std::string>(s2));
 		}
 	}
-}
-private: System::Void buttonEnd_Click(System::Object^ sender, System::EventArgs^ e) {
-	String^ s1 = sPID;
-	endFromNum(msclr::interop::marshal_as<std::string>(s1));
-}
-private: System::Void buttonSend_Click(System::Object^ sender, System::EventArgs^ e) {
-	String^ s1 = sPID; String^ s2 = sNameDll;
-	if (s1 != "")
-	{
-		sendDataFromNum(msclr::interop::marshal_as<std::string>(s1), msclr::interop::marshal_as<std::string>(s2));
+	private: System::Void buttonGet_Click(System::Object^ sender, System::EventArgs^ e) {
+		thread = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonGet_Thread));
+		thread->Start();
 	}
-}
-private: System::Void buttonGet_Click(System::Object^ sender, System::EventArgs^ e) {
-	String^ s1 = sPID; String^ s2 = sNameDll;
-	if (s1 != "")
-	{
-		getDataFromNum(msclr::interop::marshal_as<std::string>(s1), msclr::interop::marshal_as<std::string>(s2));
+	private: System::Void buttonGet_Thread() {
+		String^ s1 = sPID; String^ s2 = sNameDll;
+		if (s1 != "")
+		{
+			getDataFromNum(msclr::interop::marshal_as<std::string>(s1), msclr::interop::marshal_as<std::string>(s2));
+		}
 	}
-}
-private: System::Void dataGridView1_CellClick(System::Object^ sender, System::Windows::Forms::DataGridViewCellEventArgs^ e) 
-{
-	if (this->dataGridView1->RowCount >= 2 && e->RowIndex!= this->dataGridView1->RowCount-1)
-	{sPID = this->dataGridView1->Rows[e->RowIndex]->Cells[0]->Value->ToString();
-	 sNameDll = this->dataGridView1->Rows[e->RowIndex]->Cells[1]->Value->ToString();}
-}
-};
+	private: System::Void dataGridView1_CellClick(System::Object^ sender, System::Windows::Forms::DataGridViewCellEventArgs^ e)
+	{
+		if (this->dataGridView1->RowCount >= 2 && e->RowIndex != this->dataGridView1->RowCount - 1)
+		{
+			sPID = this->dataGridView1->Rows[e->RowIndex]->Cells[0]->Value->ToString();
+			sNameDll = this->dataGridView1->Rows[e->RowIndex]->Cells[1]->Value->ToString();
+		}
+	}
+	};
 }

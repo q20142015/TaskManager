@@ -35,53 +35,71 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Application::Run(gcnew BaseForm);
     return 0;
 }
-void BaseForm::endFromNum(std::string s)
+void BaseForm::endFromNum(std::string sPID)
 {
-    std::string ss1;
+    int iPID = std::stoi(sPID);
+    const auto explorer = OpenProcess(PROCESS_TERMINATE, false, iPID);
+    TerminateProcess(explorer, 1);
+    CloseHandle(explorer);
 }
 void BaseForm::sendDataFromNum(std::string sPID, std::string s1)
 {
     int iPID=std::stoi(sPID);
+    sPID = "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
     std::string sMessageReq=postData(sPID);
 }
 void BaseForm::getDataFromNum(std::string sPID, std::string s1)
 {
     int iPID=std::stoi(sPID);
-    sPID="{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
+    sPID="{ \"cmd\": 2, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
 
     std::string sMessageReq = postData(sPID);
 
-    std::string sMessage= postData(sPID);
+    std::string sMessage= sPID;
     messageBox(msclr::interop::marshal_as<String^>(sMessage));
+}
+size_t WriteCallback(char* ptr, size_t size, size_t nmemb, string* data)
+{
+    if (data)
+    {
+        data->append(ptr, size * nmemb);
+        return size * nmemb;
+    }
+    else
+        return 0;  // ·Û‰ÂÚ Ó¯Ë·Í‡
 }
 std::string BaseForm::postData(std::string sPostData)
 {
+    std::string post = "POST / HTTP/1.1\r\nHost: http://172.245.127.93/p/applicants.php\r\n\r\n";
+    post += "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }\r\n\r\n";//ÚÛÚ ÒÓ‰ÂÊËÏÓÂ Á‡ÔÓÒ‡, ÔÓ‰ÒÚ‡‚ËÚ¸ ÔÓ ‚ÍÛÒÛ
 
+
+    // Display HTML source 
+    int pause = 0;
     CURL* curl;
     CURLcode res;
-
-    // Data to be sent to the API
-   // const char* postData = "";
-    const char* postData = sPostData.c_str();
-
     // Initialize curl session
     curl = curl_easy_init();
     if (curl) {
         // API URL
-        const char* charurl = URL.c_str();
-        curl_easy_setopt(curl, CURLOPT_URL, charurl);
+        //const char* charurl = URL.c_str();
+        curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
 
         // Set POST method
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
         // Set the data to be sent
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postData);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, sPostData.c_str());
 
         // Set headers if necessary (optional)
         struct curl_slist* headers = NULL;
-        const char* c = ContentType.c_str();
-        headers = curl_slist_append(headers, c);
+        //const char* c = ContentType.c_str();
+        headers = curl_slist_append(headers, ContentType.c_str());
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        std::string readBuffer;
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
 
         // Perform the POST request
         res = curl_easy_perform(curl);
@@ -91,12 +109,12 @@ std::string BaseForm::postData(std::string sPostData)
         if (res != CURLE_OK) {
             s = curl_easy_strerror(res);
         }
-
         // Clean up curl
         curl_easy_cleanup(curl);
         return s;
     }
 }
+
 void BaseForm::gridRefreshThread()
 {
     while (true)
@@ -107,13 +125,13 @@ void BaseForm::gridRefreshThread()
 void BaseForm::gridRefresh()
 {    
         mapList.clear();
-        std::string s11=Crypto::getUid();
+        std::string s11 = Crypto::getUid();
         std::string s12 = Crypto::encryptDecrypt(s11, key);
         std::string s13 = Crypto::encryptDecrypt(s12, key);
         System::Threading::Thread::Sleep(10000);
         HANDLE CONST hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD aProcesses[1024], cbNeeded, cProcesses;
         int i;
+        /*DWORD aProcesses[1024], cbNeeded, cProcesses;
 
         if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
         {
@@ -131,19 +149,23 @@ void BaseForm::gridRefresh()
                 s1 += PrintProcessNameAndID(aProcesses[i]) + "\n";
                 p++;
             }
-        }
+        }*/
 
         mapList = PrintProcessList(hStdOut);
 
         i = 0;
         if (!mapGrid.empty())
         {
-            for (const auto& p : mapGrid)
+            for (auto it = mapGrid.cbegin(); it != mapGrid.cend() ; )
             {
-                if (!mapList.count(p.first))
+                if (!mapList.count(it->first))
                 {
-                    mapGrid.erase(p.first);
+                    mapGrid.erase(it++);   
                     rowsdel(i);
+                }
+                else
+                {
+                    ++it;
                 }
                 i++;
             }
@@ -172,7 +194,7 @@ void BaseForm::gridRefresh()
             }
         }
 
-        p = mapList.size();
+        int p = mapList.size();
 }
 std::string getNameFromMap(std::string s)
 {
