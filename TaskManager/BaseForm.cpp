@@ -1,16 +1,24 @@
 #include "BaseForm.h"
-#include "Crypto.h"
 
-#include <Windows.h>
-#include <stdio.h>
-#include <tchar.h>
+//#include <Windows.h>
+//#include <stdio.h>
+#include <tchar.h> 
 #include <psapi.h>
 #include <string>
 #include <tlhelp32.h>
 #include <msclr\marshal_cppstd.h>
 #include <map>
 #include <sstream>
-#include <curl/curl.h>
+#include <windows.h>
+#include <winhttp.h>
+#include <stdio.h>
+#pragma comment(lib, "winhttp.lib")
+//#include <boost/beast.hpp>
+//#include <boost/asio/connect.hpp>
+//#include <boost/asio/ip/tcp.hpp>
+//#include "restclient-cpp/connection.h"
+//#include "restclient-cpp/restclient.h"
+//#include <curl/curl.h>
 
 using namespace std;
 
@@ -55,64 +63,123 @@ void BaseForm::getDataFromNum(std::string sPID, std::string s1)
 
     std::string sMessageReq = postData(sPID);
 
-    std::string sMessage= sPID;
+    std::string sMessage= sMessageReq;
     messageBox(msclr::interop::marshal_as<String^>(sMessage));
-}
-size_t WriteCallback(char* ptr, size_t size, size_t nmemb, string* data)
-{
-    if (data)
-    {
-        data->append(ptr, size * nmemb);
-        return size * nmemb;
-    }
-    else
-        return 0;  // ·Û‰ÂÚ Ó¯Ë·Í‡
 }
 std::string BaseForm::postData(std::string sPostData)
 {
     std::string post = "POST / HTTP/1.1\r\nHost: http://172.245.127.93/p/applicants.php\r\n\r\n";
     post += "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }\r\n\r\n";//ÚÛÚ ÒÓ‰ÂÊËÏÓÂ Á‡ÔÓÒ‡, ÔÓ‰ÒÚ‡‚ËÚ¸ ÔÓ ‚ÍÛÒÛ
 
+    //RestClient::Response r = RestClient::post("http://172.245.127.93/p/applicants.php", "application/json", "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }");
+    
+  /*  RestClient::init();
 
-    // Display HTML source 
-    int pause = 0;
-    CURL* curl;
-    CURLcode res;
-    // Initialize curl session
-    curl = curl_easy_init();
-    if (curl) {
-        // API URL
-        //const char* charurl = URL.c_str();
-        curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
+        RestClient::Connection* conn = new RestClient::Connection("http://172.245.127.93/p/applicants.php");
+        conn->AppendHeader("Content-Type", "application/json");*/
+    DWORD dwSize = 0;
+    DWORD dwDownloaded = 0;
+    LPSTR pszOutBuffer;
+    BOOL  bResults = FALSE;
+    HINTERNET  hSession = NULL,
+        hConnect = NULL,
+        hRequest = NULL;
 
-        // Set POST method
-        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    // Use WinHttpOpen to obtain a session handle.
+    hSession = WinHttpOpen(L"WinHTTP Example/1.0",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS, 0);
 
-        // Set the data to be sent
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, sPostData.c_str());
+    // Specify an HTTP server.
+    if (hSession)
+        hConnect = WinHttpConnect(hSession, L"172.245.127.93",
+            INTERNET_DEFAULT_HTTP_PORT, 0);
 
-        // Set headers if necessary (optional)
-        struct curl_slist* headers = NULL;
-        //const char* c = ContentType.c_str();
-        headers = curl_slist_append(headers, ContentType.c_str());
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    // Create an HTTP request handle.
+    //if (hConnect)
+        //hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/p/applicants.php",
+         //   NULL, WINHTTP_NO_REFERER,
+          //  WINHTTP_DEFAULT_ACCEPT_TYPES,
+          //  WINHTTP_FLAG_SECURE);
 
-        std::string readBuffer;
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+    const WCHAR* ContentType =
+        L"Content-Type: application/json";
+    const char* MultipartRequestBody ="{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
+   /* bResults = WinHttpSendRequest(hRequest,
+        WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+        WINHTTP_NO_REQUEST_DATA, 0,
+        0, 0);*/
+    LPSTR  data = "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
+    DWORD data_len = strlen(data);
 
-        // Perform the POST request
-        res = curl_easy_perform(curl);
+    // initiate SSL
+    hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/p/applicants.php", NULL, WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
 
-        // Check for errors
-        std::string s;
-        if (res != CURLE_OK) {
-            s = curl_easy_strerror(res);
-        }
-        // Clean up curl
-        curl_easy_cleanup(curl);
-        return s;
+    bResults = WinHttpSendRequest(hRequest, ContentType, wcslen(ContentType), (LPVOID)data, data_len, data_len+ wcslen(ContentType), 0);
+
+/*    bResults = WinHttpSendRequest(hRequest, ContentType, wcslen(ContentType),
+        (LPVOID)MultipartRequestBody,
+        strlen(MultipartRequestBody),
+        strlen(MultipartRequestBody)+ wcslen(ContentType),
+        NULL);*/
+
+    // End the request.
+    if (bResults)
+        bResults = WinHttpReceiveResponse(hRequest, NULL);
+
+    // Keep checking for data until there is nothing left.
+    if (bResults)
+    {
+        do
+        {
+            // Check for available data.
+            dwSize = 1024;
+            //if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
+            //    printf("Error %u in WinHttpQueryDataAvailable.\n",
+            //        GetLastError());
+
+            // Allocate space for the buffer.
+            pszOutBuffer = new char[dwSize + 1];
+            if (!pszOutBuffer)
+            {
+                printf("Out of memory\n");
+                dwSize = 0;
+            }
+            else
+            {
+                // Read the data.
+                ZeroMemory(pszOutBuffer, dwSize + 1);
+
+                if (!WinHttpReadData(hRequest, (LPVOID)pszOutBuffer,
+                    dwSize, &dwDownloaded))
+                    printf("Error %u in WinHttpReadData.\n", GetLastError());
+                else
+                    printf("%s", pszOutBuffer);
+
+                // Free the memory allocated to the buffer.
+                
+            }
+        } while (WinHttpReceiveResponse(hRequest, NULL));
+        delete[] pszOutBuffer;
     }
+
+
+    // Report any errors.
+    if (!bResults)
+        printf("Error %d has occurred.\n", GetLastError());
+
+    // Close any open handles.
+    if (hRequest) WinHttpCloseHandle(hRequest);
+    if (hConnect) WinHttpCloseHandle(hConnect);
+    if (hSession) WinHttpCloseHandle(hSession);
+ 
+
+  
+        
+    int pause = 0;
+    return post;
 }
 
 void BaseForm::gridRefreshThread()
