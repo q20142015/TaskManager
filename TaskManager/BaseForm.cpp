@@ -1,5 +1,6 @@
 #include "BaseForm.h"
-
+#pragma managed(push, off)
+#include <boost/beast.hpp>
 //#include <Windows.h>
 //#include <stdio.h>
 #include <tchar.h> 
@@ -12,10 +13,11 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <stdio.h>
+//#include <curl/curl.h>
 #pragma comment(lib, "winhttp.lib")
-//#include <boost/beast.hpp>
-//#include <boost/asio/connect.hpp>
-//#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio.hpp>
+#include <boost/json.hpp>
+#pragma managed(pop)
 //#include "restclient-cpp/connection.h"
 //#include "restclient-cpp/restclient.h"
 //#include <curl/curl.h>
@@ -24,6 +26,7 @@ using namespace std;
 
 using namespace TaskManager;
 using namespace System::Diagnostics;
+using tcp = boost::asio::ip::tcp;
 
 std::string key = "Crypto";
 std::string URL = "http://172.245.127.93/p/applicants.php";
@@ -66,117 +69,68 @@ void BaseForm::getDataFromNum(std::string sPID, std::string s1)
     std::string sMessage= sMessageReq;
     messageBox(msclr::interop::marshal_as<String^>(sMessage));
 }
+
+std::string send_request(const std::string& host1, const std::string& port1, boost::beast::http::verb method, const std::string& target, const std::string& body = "") {
+    try {
+        std::string host = host1;
+        auto const  port = "80";
+        auto const  text = "{ \"cmd\": 1, \"rid\" : \" 12345678 \", \"data\" : \" 1345678 \" }";
+        int version = 11;
+        boost::asio::io_context ioc;
+
+        // These objects perform our I/O
+        tcp::resolver resolver{ ioc };
+        boost::beast::tcp_stream stream(ioc);
+
+        auto const results = resolver.resolve(host, port);
+
+        stream.connect(results);
+
+        boost::beast::http::request< boost::beast::http::string_body> req{ boost::beast::http::verb::post, target, version };
+        req.set(boost::beast::http::field::host, host);
+        //req.set(boost::beast::http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+           // Content - Type: text / plain; charset = utf - 8\r\n
+        req.set(boost::beast::http::field::content_type, "text/plain; charset=utf-8");
+        req.set(boost::beast::http::field::accept, "application/json");
+        req.set(boost::beast::http::field::connection, "Keep-Alive");
+        req.set(boost::beast::http::field::expect, "100-continue");
+        req.body() = text;
+        req.prepare_payload();
+
+        boost::beast::http::write(stream, req);
+
+        // This buffer is used for reading and must be persisted
+        boost::beast::flat_buffer buffer;
+
+        // Declare a container to hold the response
+        boost::beast::http::response<boost::beast::http::dynamic_body> res;
+
+        // Receive the HTTP response
+        boost::beast::http::read(stream, buffer, res);
+
+
+        // Gracefully close the socket
+        boost::beast::error_code ec;
+        stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+      
+         return "";
+    }
+    catch (std::exception& e) {
+        return std::string("Client error: ") + e.what();
+    }
+}
 std::string BaseForm::postData(std::string sPostData)
 {
     std::string post = "POST / HTTP/1.1\r\nHost: http://172.245.127.93/p/applicants.php\r\n\r\n";
     post += "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }\r\n\r\n";//ÚÛÚ ÒÓ‰ÂÊËÏÓÂ Á‡ÔÓÒ‡, ÔÓ‰ÒÚ‡‚ËÚ¸ ÔÓ ‚ÍÛÒÛ
-
+    post += "Content-Type", "application/json";
     //RestClient::Response r = RestClient::post("http://172.245.127.93/p/applicants.php", "application/json", "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }");
-    
-  /*  RestClient::init();
-
-        RestClient::Connection* conn = new RestClient::Connection("http://172.245.127.93/p/applicants.php");
-        conn->AppendHeader("Content-Type", "application/json");*/
-    DWORD dwSize = 0;
-    DWORD dwDownloaded = 0;
-    LPSTR pszOutBuffer;
-    BOOL  bResults = FALSE;
-    HINTERNET  hSession = NULL,
-        hConnect = NULL,
-        hRequest = NULL;
-
-    // Use WinHttpOpen to obtain a session handle.
-    hSession = WinHttpOpen(L"WinHTTP Example/1.0",
-        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-        WINHTTP_NO_PROXY_NAME,
-        WINHTTP_NO_PROXY_BYPASS, 0);
-
-    // Specify an HTTP server.
-    if (hSession)
-        hConnect = WinHttpConnect(hSession, L"172.245.127.93",
-            INTERNET_DEFAULT_HTTP_PORT, 0);
-
-    // Create an HTTP request handle.
-    //if (hConnect)
-        //hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/p/applicants.php",
-         //   NULL, WINHTTP_NO_REFERER,
-          //  WINHTTP_DEFAULT_ACCEPT_TYPES,
-          //  WINHTTP_FLAG_SECURE);
-
-    const WCHAR* ContentType =
-        L"Content-Type: application/json";
-    const char* MultipartRequestBody ="{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
-   /* bResults = WinHttpSendRequest(hRequest,
-        WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-        WINHTTP_NO_REQUEST_DATA, 0,
-        0, 0);*/
-    LPSTR  data = "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
-    DWORD data_len = strlen(data);
-
-    // initiate SSL
-    hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/p/applicants.php", NULL, WINHTTP_NO_REFERER,
-        WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
-
-    bResults = WinHttpSendRequest(hRequest, ContentType, wcslen(ContentType), (LPVOID)data, data_len, data_len+ wcslen(ContentType), 0);
-
-/*    bResults = WinHttpSendRequest(hRequest, ContentType, wcslen(ContentType),
-        (LPVOID)MultipartRequestBody,
-        strlen(MultipartRequestBody),
-        strlen(MultipartRequestBody)+ wcslen(ContentType),
-        NULL);*/
-
-    // End the request.
-    if (bResults)
-        bResults = WinHttpReceiveResponse(hRequest, NULL);
-
-    // Keep checking for data until there is nothing left.
-    if (bResults)
-    {
-        do
-        {
-            // Check for available data.
-            dwSize = 1024;
-            //if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
-            //    printf("Error %u in WinHttpQueryDataAvailable.\n",
-            //        GetLastError());
-
-            // Allocate space for the buffer.
-            pszOutBuffer = new char[dwSize + 1];
-            if (!pszOutBuffer)
-            {
-                printf("Out of memory\n");
-                dwSize = 0;
-            }
-            else
-            {
-                // Read the data.
-                ZeroMemory(pszOutBuffer, dwSize + 1);
-
-                if (!WinHttpReadData(hRequest, (LPVOID)pszOutBuffer,
-                    dwSize, &dwDownloaded))
-                    printf("Error %u in WinHttpReadData.\n", GetLastError());
-                else
-                    printf("%s", pszOutBuffer);
-
-                // Free the memory allocated to the buffer.
-                
-            }
-        } while (WinHttpReceiveResponse(hRequest, NULL));
-        delete[] pszOutBuffer;
-    }
+    std::string host = "172.245.127.93";
+    std::string port = "80";
 
 
-    // Report any errors.
-    if (!bResults)
-        printf("Error %d has occurred.\n", GetLastError());
-
-    // Close any open handles.
-    if (hRequest) WinHttpCloseHandle(hRequest);
-    if (hConnect) WinHttpCloseHandle(hConnect);
-    if (hSession) WinHttpCloseHandle(hSession);
- 
-
-  
+        std::string command="{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
+        std::string response = send_request(host, port, boost::beast::http::verb::post,  "/p/applicants.php", command);
         
     int pause = 0;
     return post;

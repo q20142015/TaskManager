@@ -1,4 +1,5 @@
 #pragma once
+#include "winsock2.h"
 #include <thread>
 #include <shlobj.h>
 #include "Crypto.h"
