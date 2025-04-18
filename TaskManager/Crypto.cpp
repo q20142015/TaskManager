@@ -2,14 +2,12 @@
 
 std::string Crypto::encryptDecrypt(std::string whatToencrypt, std::string key)
 {
-   std::vector<char> resStr;
-    int i = 0;
-    for(char& c : whatToencrypt)
-    {
-        resStr.push_back((char)(c ^ key[i++]));
-        i = i % key.size();
+    int keyIdx = 0;  // текущий индекс байта ключа
+    for (int i = 0; i < whatToencrypt.size(); i++) {
+        whatToencrypt[i] = whatToencrypt[i] ^ key[keyIdx++]; // шифруем строку и смещаем индекс ключа
+        if (keyIdx == key.size())  // если достигли конца ключа - начинаем сначала
+            keyIdx = 0;
     }
-    whatToencrypt = accumulate(resStr.cbegin(), resStr.cend(), std::string{});
     return whatToencrypt;
 }
 std::string Crypto::getUid()

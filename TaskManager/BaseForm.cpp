@@ -13,10 +13,11 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <stdio.h>
+#include <nlohmann/json.hpp>
 //#include <curl/curl.h>
 #pragma comment(lib, "winhttp.lib")
 #include <boost/asio.hpp>
-#include <boost/json.hpp>
+//#include <boost/json.hpp>
 #pragma managed(pop)
 //#include "restclient-cpp/connection.h"
 //#include "restclient-cpp/restclient.h"
@@ -56,25 +57,86 @@ void BaseForm::endFromNum(std::string sPID)
 void BaseForm::sendDataFromNum(std::string sPID, std::string s1)
 {
     int iPID=std::stoi(sPID);
-    sPID = "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
+
+    std::string data = mapGrid[iPID];
+    data.erase(data.size()-1, 1);
+    time_t start_time;
+    start_time = time(NULL);
+    data +=" "+ std::to_string(start_time);
+    data=Crypto::encryptDecrypt(data, key);
+    //data = Crypto::encryptDecrypt(data, key);
+    std::string datareq;
+
+    for (int i = 0; i < data.size(); i++)
+    {
+        int iMyAsciiValue = static_cast<int>(data[i]);
+        datareq += std::to_string(iMyAsciiValue)+" ";
+    }
+
+
+
+    sPID = "{ \"cmd\": 1, \"rid\" : \""+mapUid[iPID]+"\", \"data\" : \" "+ datareq + "\"  }";
     std::string sMessageReq=postData(sPID);
+    messageBox(msclr::interop::marshal_as<String^>("Send!"));
 }
 void BaseForm::getDataFromNum(std::string sPID, std::string s1)
 {
     int iPID=std::stoi(sPID);
-    sPID="{ \"cmd\": 2, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
+    sPID="{ \"cmd\": 2, \"rid\" : \"" + mapUid[iPID] + "\"}";
 
     std::string sMessageReq = postData(sPID);
 
-    std::string sMessage= sMessageReq;
-    messageBox(msclr::interop::marshal_as<String^>(sMessage));
+    stringstream ss(sMessageReq);
+    if (sMessageReq.find('data') != sMessageReq.npos) {
+        std::string sName;
+        int numDel = sMessageReq.find("\"data\"");
+        sMessageReq.erase(0, numDel + 9);
+        if (sMessageReq == "}"){ messageBox(msclr::interop::marshal_as<String^>("Empty"));}
+        else {
+            numDel = sMessageReq.find("\"");
+            sMessageReq.erase(numDel, 2);
+        }
+    }
+    std::vector<std::string> stringvector;
+
+    ss.clear();
+    ss.str(sMessageReq);
+    std::string item;
+    while (std::getline(ss, item, ' ')) {
+        stringvector.push_back(item);
+    }
+    sMessageReq = "";
+    for (int i = 0; i < stringvector.size();i++)
+    {
+        sMessageReq.push_back((char)std::stoi(stringvector[i]));
+    }
+
+    sMessageReq = Crypto::encryptDecrypt(sMessageReq, key);
+    
+    stringvector.clear();
+
+    ss.clear();
+    ss.str(sMessageReq);
+    while (std::getline(ss, item, ' ')) {
+        stringvector.push_back(item);
+    }
+    if (stringvector.size() <= 3) { sMessageReq = "Empty"; }
+    else {
+        sMessageReq = "";
+        for (int i = 2; i < stringvector.size()-1; i++)
+        {
+            sMessageReq+=stringvector[i]+" ";
+        }    
+    }
+
+    messageBox(msclr::interop::marshal_as<String^>(sMessageReq));
 }
 
 std::string send_request(const std::string& host1, const std::string& port1, boost::beast::http::verb method, const std::string& target, const std::string& body = "") {
     try {
         std::string host = host1;
         auto const  port = "80";
-        auto const  text = "{ \"cmd\": 1, \"rid\" : \" 12345678 \", \"data\" : \" 1345678 \" }";
+        auto const  text = body;
         int version = 11;
         boost::asio::io_context ioc;
 
@@ -96,6 +158,7 @@ std::string send_request(const std::string& host1, const std::string& port1, boo
         req.set(boost::beast::http::field::expect, "100-continue");
         req.body() = text;
         req.prepare_payload();
+        boost::beast::error_code ec;
 
         boost::beast::http::write(stream, req);
 
@@ -106,14 +169,20 @@ std::string send_request(const std::string& host1, const std::string& port1, boo
         boost::beast::http::response<boost::beast::http::dynamic_body> res;
 
         // Receive the HTTP response
-        boost::beast::http::read(stream, buffer, res);
+       // boost::beast::http::read(stream, buffer, res);  
+
+        //boost::beast::http::basic_parser<false, boost::beast::http::string_body> response_parser;
+       // boost::beast::http::read_some(stream, buffer, res);
+        std::string strRes;
+        for (boost::beast::http::response<boost::beast::http::string_body> res; !ec && read(stream, buffer, res, ec); res.clear()) {
+            strRes=res.body();
+        }
 
 
         // Gracefully close the socket
-        boost::beast::error_code ec;
         stream.socket().shutdown(tcp::socket::shutdown_both, ec);
       
-         return "";
+         return strRes;
     }
     catch (std::exception& e) {
         return std::string("Client error: ") + e.what();
@@ -124,16 +193,12 @@ std::string BaseForm::postData(std::string sPostData)
     std::string post = "POST / HTTP/1.1\r\nHost: http://172.245.127.93/p/applicants.php\r\n\r\n";
     post += "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }\r\n\r\n";//ÚÛÚ ÒÓ‰ÂÊËÏÓÂ Á‡ÔÓÒ‡, ÔÓ‰ÒÚ‡‚ËÚ¸ ÔÓ ‚ÍÛÒÛ
     post += "Content-Type", "application/json";
-    //RestClient::Response r = RestClient::post("http://172.245.127.93/p/applicants.php", "application/json", "{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }");
     std::string host = "172.245.127.93";
     std::string port = "80";
-
-
-        std::string command="{ \"cmd\": 1, \"rid\" : \" % ”Õ» ¿À‹Õ€…_»ƒ≈Õ“»‘» ¿“Œ–% \", \"data\" : \" % ÿ»‘–Œ¬¿ÕÕ¿ﬂ_—“–Œ ¿% \" }";
-        std::string response = send_request(host, port, boost::beast::http::verb::post,  "/p/applicants.php", command);
+    std::string response = send_request(host, port, boost::beast::http::verb::post,  "/p/applicants.php", sPostData);
         
     int pause = 0;
-    return post;
+    return response;
 }
 
 void BaseForm::gridRefreshThread()
@@ -141,6 +206,7 @@ void BaseForm::gridRefreshThread()
     while (true)
     {
     gridRefresh();
+    System::Threading::Thread::Sleep(10000);
     }
 }
 void BaseForm::gridRefresh()
@@ -149,7 +215,6 @@ void BaseForm::gridRefresh()
         std::string s11 = Crypto::getUid();
         std::string s12 = Crypto::encryptDecrypt(s11, key);
         std::string s13 = Crypto::encryptDecrypt(s12, key);
-        System::Threading::Thread::Sleep(10000);
         HANDLE CONST hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
         int i;
         /*DWORD aProcesses[1024], cbNeeded, cProcesses;
@@ -181,7 +246,7 @@ void BaseForm::gridRefresh()
             {
                 if (!mapList.count(it->first))
                 {
-                    mapGrid.erase(it++);   
+                    mapGrid.erase(it++);
                     rowsdel(i);
                 }
                 else
@@ -201,6 +266,7 @@ void BaseForm::gridRefresh()
                 {
                     rowsadd(msclr::interop::marshal_as<String^>(std::to_string(p.first)), msclr::interop::marshal_as<String^>(getNameFromMap(p.second)),i);
                     mapGrid[p.first] = p.second;
+                    mapUid[p.first] = Crypto::getUid();
                 }
                 else
                 {
@@ -209,6 +275,7 @@ void BaseForm::gridRefresh()
                     {
                         rowschange(msclr::interop::marshal_as<String^>(std::to_string(p.first)), msclr::interop::marshal_as<String^>(getNameFromMap(p.second)), i);
                         mapGrid[p.first] = p.second;
+                        mapUid[p.first] = Crypto::getUid();
                     }
                 }
                 i++;
@@ -223,11 +290,11 @@ std::string getNameFromMap(std::string s)
     std::string sName;
     std::getline(ss, sName, ' ');
     std::getline(ss, sName, ' ');
-    if (s.find('[') != s.npos) {
-        std::string sNameAfter;
-        std::getline(ss, sNameAfter, ' ');
-        sName += sNameAfter;
-    }
+    //if (s.find('[') != s.npos) {
+    //    std::string sNameAfter;
+    //   std::getline(ss, sNameAfter, ' ');
+    //    sName += sNameAfter;
+    //}
     return sName;
 }
 std::string PrintModuleList(HANDLE CONST hStdOut, DWORD CONST dwProcessId) {
@@ -278,11 +345,19 @@ std::map<int, std::string> PrintProcessList(HANDLE CONST hStdOut) {
         //WriteConsole(hStdOut, szBuff, lstrlen(szBuff), &dwTemp, NULL);
         std::wstring ws(peProcessEntry.szExeFile);
         std::string str(ws.begin(), ws.end());
-        s =  std::to_string (peProcessEntry.th32ProcessID)+" "+str +
+        s = std::to_string(peProcessEntry.th32ProcessID)+" " + str +
         PrintModuleList(hStdOut, peProcessEntry.th32ProcessID) + "\n";
         stringstream ss(s);
         std::string sPID;
         std::getline(ss, sPID, ' ');
+        if (s.find('[') != s.npos) {
+            std::string sName;
+            int numDel = s.find(' ');
+            std::getline(ss, sName, ']');
+            numDel += sName.rfind(' ');
+            s.erase(numDel+1, 1);
+            std::string sNameAfter;
+        }
         mapList[std::stoi(sPID)] = s;
         p++;
     } while (Process32Next(hSnapshot, &peProcessEntry));

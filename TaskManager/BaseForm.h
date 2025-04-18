@@ -277,16 +277,16 @@ namespace TaskManager {
 		}
 	}
 	private: System::Void buttonEnd_Click(System::Object^ sender, System::EventArgs^ e) {
-		thread = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonEnd_Thread));
-		thread->Start();
+		System::Threading::Thread^ threadE = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonEnd_Thread));
+		threadE->Start();
 	}
 	private: System::Void buttonEnd_Thread() {
 		String^ s1 = sPID;
 		endFromNum(msclr::interop::marshal_as<std::string>(s1));
 	}
 	private: System::Void buttonSend_Click(System::Object^ sender, System::EventArgs^ e) {
-		thread = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonSend_Thread));
-		thread->Start();
+		System::Threading::Thread^ threadS = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonSend_Thread));
+		threadS->Start();
 	}
 	private: System::Void buttonSend_Thread() {
 		String^ s1 = sPID; String^ s2 = sNameDll;
@@ -296,8 +296,8 @@ namespace TaskManager {
 		}
 	}
 	private: System::Void buttonGet_Click(System::Object^ sender, System::EventArgs^ e) {
-		thread = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonGet_Thread));
-		thread->Start();
+		System::Threading::Thread^ threadG = gcnew System::Threading::Thread(gcnew System::Threading::ThreadStart(this, &BaseForm::buttonGet_Thread));
+		threadG->Start();
 	}
 	private: System::Void buttonGet_Thread() {
 		String^ s1 = sPID; String^ s2 = sNameDll;
